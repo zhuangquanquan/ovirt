@@ -1,0 +1,39 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+    xmlns:g="urn:import:com.google.gwt.user.client.ui"
+    xmlns:ge="urn:import:org.ovirt.engine.ui.common.widget.editor.generic"
+    xmlns:d="urn:import:org.ovirt.engine.ui.common.widget.dialog"
+    xmlns:l="urn:import:org.ovirt.engine.ui.common.widget.label">
+
+    <ui:style type="org.ovirt.engine.ui.common.widget.EntityModelWidgetWithInfo.Style">
+        .floatLeft {
+            float: left;
+        }
+
+        .infoIcon {
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        .floatRight {
+            float: right;
+        }
+
+        .overflowAuto {
+            overflow: auto;
+        }
+
+        .clearBoth {
+            clear: both;
+        }
+    </ui:style>
+
+    <g:FlowPanel ui:field="container" addStyleNames="{style.overflowAuto}">
+      <g:FlowPanel ui:field="labelPanel" addStyleNames="{style.floatLeft}">
+        <l:EnableableFormLabel ui:field="label" addStyleNames="{style.floatLeft}" />
+        <d:InfoIcon ui:field="infoIcon" addStyleNames="{style.infoIcon}" />
+      </g:FlowPanel>
+      <g:FlowPanel ui:field="contentWidgetContainer" />
+    </g:FlowPanel>
+
+</ui:UiBinder>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder" xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:w="urn:import:org.ovirt.engine.ui.common.widget" xmlns:ge="urn:import:org.ovirt.engine.ui.common.widget.editor.generic">
+    <ui:with field='constants' type='org.ovirt.engine.ui.common.CommonApplicationConstants'/>
+
+    <ui:style>
+        .container {
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .messagesLabel {
+            color: #CD2127;
+            width: 99%;
+            line-height: 18px;
+        }
+
+        .messagesLabel ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+
+        @external obrand_diskTypePanel;
+        .obrand_diskTypePanel {
+            height: 36px;
+            width: 100%;
+            padding-top: 6px;
+            margin-bottom: 6px;
+            color: white;
+            font-weight: bold;
+            display: block;
+        }
+
+        .mainPanel {
+            width: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            height: 517px;
+        }
+
+        .isPluggedEditor {
+            float: right;
+            margin-top: -8px;
+            width: 140px;
+        }
+
+        .diskTypeSelection {
+            float: left;
+        }
+
+        .attachDiskPanel {
+            padding: 2px;
+        }
+
+    </ui:style>
+
+    <g:FlowPanel addStyleNames="{style.container}">
+        <g:FlowPanel addStyleNames="{style.obrand_diskTypePanel}">
+            <w:RadioButtonsHorizontalPanel ui:field="diskTypePanel" name="diskTypePanel" addStyleNames="{style.diskTypeSelection}"/>
+            <ge:EntityModelCheckBoxEditor ui:field="isPluggedEditor" addStyleNames="{style.isPluggedEditor}" label="{constants.activateVmDiskPopup}" widgetTooltip="{constants.activateVmDiskPopupToolTip}" />
+        </g:FlowPanel>
+        <g:FlowPanel ui:field="attachDiskContainer" addStyleNames="{style.mainPanel}">
+            <w:ValidatedPanelWidget ui:field="attachDiskPanel" />
+            <g:FlowPanel ui:field="warningPanel" addStyleNames="{style.messagesLabel}">
+                <g:HTML ui:field="messageLabel" />
+                <g:HTML ui:field="warningLabel" visible="false" />
+            </g:FlowPanel>
+        </g:FlowPanel>
+    </g:FlowPanel>
+
+</ui:UiBinder>

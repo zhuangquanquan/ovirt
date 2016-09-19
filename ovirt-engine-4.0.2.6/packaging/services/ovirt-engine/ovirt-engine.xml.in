@@ -1,0 +1,580 @@
+<?xml version='1.0' encoding='UTF-8'?>
+
+{% if config.getboolean('ENGINE_AJP_ENABLED') %}
+{% set HTTPS_PORT = config.getinteger('ENGINE_PROXY_HTTPS_PORT') %}
+{% else %}
+{% set HTTPS_PORT = config.getinteger('ENGINE_HTTPS_PORT') %}
+{% endif %}
+
+<server xmlns="urn:jboss:domain:4.0">
+
+  <extensions>
+    <extension module="org.jboss.as.clustering.infinispan"/>
+    <extension module="org.jboss.as.connector"/>
+    <extension module="org.jboss.as.deployment-scanner"/>
+    <extension module="org.jboss.as.ee"/>
+    <extension module="org.jboss.as.ejb3"/>
+    <extension module="org.jboss.as.jaxrs"/>
+    <extension module="org.jboss.as.jmx"/>
+    <extension module="org.jboss.as.logging"/>
+    <extension module="org.jboss.as.naming"/>
+    <extension module="org.jboss.as.remoting"/>
+    <extension module="org.jboss.as.security"/>
+    <extension module="org.jboss.as.transactions"/>
+    <extension module="org.jboss.as.weld"/>
+    <extension module="org.wildfly.extension.batch.jberet"/>
+    <extension module="org.wildfly.extension.bean-validation"/>
+    <extension module="org.wildfly.extension.io"/>
+    <extension module="org.wildfly.extension.request-controller"/>
+    <extension module="org.wildfly.extension.security.manager"/>
+    <extension module="org.wildfly.extension.undertow"/>
+  </extensions>
+
+  <system-properties>
+    <!-- Don't let quartz call home to check for updates: -->
+    <property name="org.quartz.scheduler.skipUpdateCheck" value="true"/>
+
+    <!-- Configure quartz thread pool: -->
+    <property name="org.quartz.threadPool.class" value="org.ovirt.engine.core.utils.timer.SchedulerThreadPool"/>
+    <property name="org.quartz.threadPool.threadCount" value="100"/>
+    <property name="org.quartz.jobStore.misfireThreshold" value="60000"/>
+    <property name="org.quartz.jobStore.class" value="org.quartz.simpl.RAMJobStore"/>
+  </system-properties>
+
+  <management>
+    <security-realms>
+      <!-- We need to enable the management subsystem because it is an indirect
+           dependency of the Infinispan subsystem (since version 7.2 of the
+           application server) but at the same time we don't want anyone (other
+           than the root and ovirt users) to be able to connect to the
+           management port, so we just use an empty users file: -->
+      <security-realm name="management">
+        <plug-ins>
+          <plug-in module="org.ovirt.engine.core.auth-plugin"/>
+        </plug-ins>
+        <authentication>
+          <plug-in name="OvirtAuth" mechanism="PLAIN"/>
+        </authentication>
+      </security-realm>
+
+      <!-- This is required by the HTTPS listener: -->
+      <security-realm name="https">
+        <server-identities>
+          <ssl>
+            <keystore
+                alias="1"
+                key-password="mypass"
+                keystore-password="mypass"
+                path="{{ config.get('ENGINE_PKI') }}/keys/jboss.p12"
+                provider="PKCS12"/>
+          </ssl>
+        </server-identities>
+      </security-realm>
+
+      <!-- This is required by http-remoting-connector -->
+      <security-realm name="ApplicationRealm">
+        <authentication>
+          <properties path="/dev/null"/>
+        </authentication>
+        <authorization>
+          <properties path="/dev/null"/>
+        </authorization>
+      </security-realm>
+    </security-realms>
+
+    <management-interfaces>
+      <http-interface security-realm="management" http-upgrade-enabled="true">
+        <socket-binding http="management"/>
+      </http-interface>
+    </management-interfaces>
+  </management>
+
+  <profile>
+    <subsystem xmlns="urn:jboss:domain:logging:3.0">
+      <custom-handler
+          name="ovirt-logger"
+          class="org.ovirt.engine.core.logger.LoggerHandler"
+          module="org.ovirt.engine.core.logger">
+        <level name="ALL"/>
+      </custom-handler>
+
+      <!-- All the application server messages go here: -->
+      <file-handler name="SERVER">
+        <level name="INFO"/>
+        <formatter>
+          <pattern-formatter pattern="%d %-5p [%c] (%t) %s%E%n"/>
+        </formatter>
+        <file path="{{ config.get('ENGINE_LOG') }}/server.log"/>
+        <append value="true"/>
+      </file-handler>
+
+      <!-- Only the engine messages go here: -->
+      <file-handler name="ENGINE" autoflush="true">
+        <level name="ALL"/>
+        <formatter>
+          <pattern-formatter pattern="%d %-5p [%c] (%t) [%X{ovirtCorrelationId}] %s%E%n"/>
+        </formatter>
+        <file path="{{ config.get('ENGINE_LOG') }}/engine.log"/>
+        <append value="true"/>
+      </file-handler>
+
+      <!-- UI exceptions go here: -->
+      <file-handler name="UI" autoflush="true">
+        <level name="ALL"/>
+        <formatter>
+          <pattern-formatter pattern="%d %-5p [%c] (%t) [%X{ovirtCorrelationId}] %s%E%n"/>
+        </formatter>
+        <file path="{{ config.get('ENGINE_LOG') }}/ui.log"/>
+        <append value="true"/>
+      </file-handler>
+
+      <!-- Console -->
+      <console-handler name="CONSOLE" autoflush="true">
+        <level name="ALL"/>
+        <formatter>
+          <pattern-formatter pattern="%d %-5p [%c] (%t) [%X{ovirtCorrelationId}] %s%E%n"/>
+        </formatter>
+      </console-handler>
+
+      <!-- Loggers for the application server: -->
+      <logger category="com.arjuna">
+        <level name="WARN"/>
+      </logger>
+      <logger category="sun.rmi">
+        <level name="WARN"/>
+      </logger>
+      <logger category="jacorb">
+        <level name="WARN"/>
+      </logger>
+      <logger category="jacorb.config">
+        <level name="ERROR"/>
+      </logger>
+
+      <!-- This is needed in order to avoid the multiple JBAS018567
+           warnings that the application server issues during startupt
+           becase we use modules that are marked as "private" using
+           the "jboss.api" property: -->
+      <logger category="org.jboss.as.dependency.private">
+        <level name="ERROR"/>
+      </logger>
+
+      <!-- Loggers for the engine: -->
+      <logger category="org.ovirt" use-parent-handlers="false">
+        <level name="INFO"/>
+        <handlers>
+          <handler name="ENGINE"/>
+          <handler name="ovirt-logger"/>
+          {% if config.getboolean('ENGINE_LOG_TO_CONSOLE') %}
+          <handler name="CONSOLE"/>
+          {% endif %}
+        </handlers>
+      </logger>
+      <!-- Loggers for the UI -->
+      <logger category="org.ovirt.engine.ui.frontend.server.gwt.OvirtRemoteLoggingService" use-parent-handlers="false">
+        <level name="INFO"/>
+        <handlers>
+          <handler name="UI"/>
+        </handlers>
+      </logger>
+       <logger category="org.ovirt.engine.core.bll">
+        <level name="INFO"/>
+      </logger>
+      <logger category="org.ovirt.engine.core.dal.dbbroker.PostgresDbEngineDialect$PostgresJdbcTemplate">
+        <level name="WARN"/>
+      </logger>
+
+      <root-logger>
+        <level name="INFO"/>
+        <handlers>
+          <handler name="ovirt-logger"/>
+          <handler name="SERVER"/>
+        </handlers>
+      </root-logger>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:batch-jberet:1.0">
+      <default-job-repository name="in-memory"/>
+      <default-thread-pool name="batch"/>
+      <job-repository name="in-memory">
+        <in-memory/>
+      </job-repository>
+      <thread-pool name="batch">
+        <max-threads count="10"/>
+        <keepalive-time time="30" unit="seconds"/>
+      </thread-pool>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:bean-validation:1.0"/>
+
+    <subsystem xmlns="urn:jboss:domain:datasources:4.0">
+      <datasources>
+        <datasource jndi-name="java:/ENGINEDataSource" pool-name="ENGINEDataSource" enabled="true" use-ccm="false">
+          <connection-url><![CDATA[{{ config.get('ENGINE_DB_URL') }}]]></connection-url>
+          <driver>postgresql</driver>
+          <transaction-isolation>TRANSACTION_READ_COMMITTED</transaction-isolation>
+          <pool>
+            <min-pool-size>{{ config.getinteger('ENGINE_DB_MIN_CONNECTIONS') }}</min-pool-size>
+            <max-pool-size>{{ config.getinteger('ENGINE_DB_MAX_CONNECTIONS') }}</max-pool-size>
+            <prefill>true</prefill>
+          </pool>
+          <security>
+            <user-name><![CDATA[{{ config.get('ENGINE_DB_USER') }}]]></user-name>
+            <password><![CDATA[{{ config.get('ENGINE_DB_PASSWORD') }}]]></password>
+          </security>
+          <statement>
+            <prepared-statement-cache-size>100</prepared-statement-cache-size>
+            <share-prepared-statements/>
+          </statement>
+          <validation>
+            <validate-on-match>true</validate-on-match>
+            <check-valid-connection-sql>select 1</check-valid-connection-sql>
+          </validation>
+        </datasource>
+
+        <datasource
+            jndi-name="java:/ENGINEDataSourceNoJTA"
+            pool-name="ENGINEDataSourceNoJTA"
+            enabled="true"
+            use-ccm="false"
+            jta="false">
+          <connection-url><![CDATA[{{ config.get('ENGINE_DB_URL') }}]]></connection-url>
+          <driver>postgresql</driver>
+          <transaction-isolation>TRANSACTION_READ_COMMITTED</transaction-isolation>
+          <pool>
+            <min-pool-size>{{ config.getinteger('ENGINE_NON_JTA_DB_MIN_CONNECTIONS') }}</min-pool-size>
+            <max-pool-size>{{ config.getinteger('ENGINE_NON_JTA_DB_MAX_CONNECTIONS') }}</max-pool-size>
+            <prefill>true</prefill>
+          </pool>
+          <security>
+            <user-name><![CDATA[{{ config.get('ENGINE_DB_USER') }}]]></user-name>
+            <password><![CDATA[{{ config.get('ENGINE_DB_PASSWORD') }}]]></password>
+          </security>
+          <statement>
+            <prepared-statement-cache-size>100</prepared-statement-cache-size>
+            <share-prepared-statements/>
+          </statement>
+          <validation>
+            <validate-on-match>true</validate-on-match>
+            <check-valid-connection-sql>select 1</check-valid-connection-sql>
+          </validation>
+        </datasource>
+
+        <datasource jndi-name="java:/DWHDataSource" pool-name="DWHDataSource" enabled="true" use-ccm="false">
+          <connection-url><![CDATA[{{ config.get('DWH_DB_URL') }}]]></connection-url>
+          <driver>postgresql</driver>
+          <transaction-isolation>TRANSACTION_READ_COMMITTED</transaction-isolation>
+          <pool>
+            <min-pool-size>{{ config.getinteger('ENGINE_DB_MIN_CONNECTIONS') }}</min-pool-size>
+            <max-pool-size>{{ config.getinteger('ENGINE_DB_MAX_CONNECTIONS') }}</max-pool-size>
+            <prefill>false</prefill>
+          </pool>
+          <security>
+            <user-name><![CDATA[{{ config.get('DWH_DB_USER') }}]]></user-name>
+            <password><![CDATA[{{ config.get('DWH_DB_PASSWORD') }}]]></password>
+          </security>
+          <statement>
+            <prepared-statement-cache-size>100</prepared-statement-cache-size>
+            <share-prepared-statements/>
+          </statement>
+          <validation>
+            <validate-on-match>true</validate-on-match>
+            <check-valid-connection-sql>select 1</check-valid-connection-sql>
+          </validation>
+        </datasource>
+
+        <drivers>
+          <driver name="postgresql" module="org.postgresql">
+            <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
+          </driver>
+        </drivers>
+      </datasources>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:deployment-scanner:2.0">
+      <deployment-scanner path="{{ jboss_runtime }}/deployments" deployment-timeout="1200"
+          {% if config.getboolean('ENGINE_DEPLOYMENT_SCANNER') %}
+          scan-interval="5000"
+          {% else %}
+          scan-interval="0"
+          {% endif %}
+      />
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:ee:4.0"/>
+
+    <subsystem xmlns="urn:jboss:domain:ejb3:4.0">
+      <session-bean>
+        <stateful default-access-timeout="5000" cache-ref="simple" passivation-disabled-cache-ref="simple"/>
+        <stateless>
+          <bean-instance-pool-ref pool-name="slsb-strict-max-pool"/>
+        </stateless>
+        <singleton default-access-timeout="5000"/>
+      </session-bean>
+      <pools>
+        <bean-instance-pools>
+          <!-- Automatically configure pools. Alternatively, max-pool-size can be set to a specific value -->
+          <strict-max-pool
+              name="slsb-strict-max-pool"
+              derive-size="from-worker-pools"
+              instance-acquisition-timeout="5"
+              instance-acquisition-timeout-unit="MINUTES"/>
+          <strict-max-pool
+              name="mdb-strict-max-pool"
+              derive-size="from-cpu-count"
+              instance-acquisition-timeout="5"
+              instance-acquisition-timeout-unit="MINUTES"/>
+        </bean-instance-pools>
+      </pools>
+      <caches>
+        <cache name="simple"/>
+        <cache name="distributable" aliases="passivating clustered" passivation-store-ref="infinispan"/>
+      </caches>
+      <passivation-stores>
+        <passivation-store name="infinispan" cache-container="ejb" max-size="10000"/>
+      </passivation-stores>
+      <async thread-pool-name="default"/>
+      <timer-service thread-pool-name="default" default-data-store="default-file-store">
+        <data-stores>
+          <file-data-store name="default-file-store" path="{{ config.get('ENGINE_VAR') }}/timer-service-data"/>
+        </data-stores>
+      </timer-service>
+      <thread-pools>
+        <thread-pool name="default">
+          <max-threads count="10"/>
+          <keepalive-time time="100" unit="milliseconds"/>
+        </thread-pool>
+      </thread-pools>
+      <default-security-domain value="other"/>
+      <default-missing-method-permissions-deny-access value="true"/>
+      <log-system-exceptions value="true"/>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:io:1.1">
+      <worker name="default"/>
+      <buffer-pool name="default"/>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:infinispan:4.0">
+      <cache-container name="server" default-cache="default" module="org.wildfly.clustering.server">
+        <local-cache name="default">
+          <transaction mode="BATCH"/>
+        </local-cache>
+      </cache-container>
+      <cache-container name="web" default-cache="passivation" module="org.wildfly.clustering.web.infinispan">
+        <local-cache name="passivation">
+          <locking isolation="REPEATABLE_READ"/>
+          <transaction mode="BATCH"/>
+          <file-store passivation="true" purge="false"/>
+        </local-cache>
+        <local-cache name="persistent">
+          <locking isolation="REPEATABLE_READ"/>
+          <transaction mode="BATCH"/>
+          <file-store passivation="false" purge="false"/>
+        </local-cache>
+      </cache-container>
+      <cache-container name="ejb" aliases="sfsb" default-cache="passivation" module="org.wildfly.clustering.ejb.infinispan">
+        <local-cache name="passivation">
+          <locking isolation="REPEATABLE_READ"/>
+          <transaction mode="BATCH"/>
+          <file-store passivation="true" purge="false"/>
+        </local-cache>
+        <local-cache name="persistent">
+          <locking isolation="REPEATABLE_READ"/>
+          <transaction mode="BATCH"/>
+          <file-store passivation="false" purge="false"/>
+        </local-cache>
+      </cache-container>
+      <cache-container
+          name="ovirt-engine"
+          default-cache="timeout-base"
+          jndi-name="java:jboss/infinispan/ovirt-engine">
+        <local-cache name="timeout-base">
+          <transaction mode="NONE"/>
+          <eviction max-entries="10000"/>
+          <expiration interval="60000"/>
+        </local-cache>
+      </cache-container>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:jaxrs:1.0"/>
+
+    <subsystem xmlns="urn:jboss:domain:jca:4.0">
+      <archive-validation enabled="false" fail-on-error="false" fail-on-warn="false"/>
+      <bean-validation enabled="true"/>
+      <default-workmanager>
+        <short-running-threads>
+          <core-threads count="50"/>
+          <queue-length count="50"/>
+          <max-threads count="50"/>
+          <keepalive-time time="10" unit="seconds"/>
+        </short-running-threads>
+        <long-running-threads>
+          <core-threads count="50"/>
+          <queue-length count="50"/>
+          <max-threads count="50"/>
+          <keepalive-time time="10" unit="seconds"/>
+        </long-running-threads>
+      </default-workmanager>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:jmx:1.3">
+      <expose-resolved-model/>
+      <expose-expression-model/>
+      <remoting-connector/>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:naming:2.0"/>
+
+    <subsystem xmlns="urn:jboss:domain:remoting:3.0">
+      <endpoint worker="default"/>
+      <http-connector name="http-remoting-connector" connector-ref="default" security-realm="ApplicationRealm"/>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:resource-adapters:4.0"/>
+
+    <subsystem xmlns="urn:jboss:domain:security:1.2">
+      <security-domains>
+        <security-domain name="other" cache-type="default">
+          <authentication>
+            <login-module code="Remoting" flag="optional">
+              <module-option name="password-stacking" value="useFirstPass"/>
+            </login-module>
+          </authentication>
+        </security-domain>
+        <security-domain name="jboss-web-policy" cache-type="default">
+          <authorization>
+            <policy-module code="Delegating" flag="required"/>
+          </authorization>
+        </security-domain>
+        <security-domain name="jboss-ejb-policy" cache-type="default">
+          <authorization>
+            <policy-module code="Delegating" flag="required"/>
+          </authorization>
+        </security-domain>
+        <security-domain name="oVirtKerb">
+          <authentication>
+            <login-module code="com.sun.security.auth.module.Krb5LoginModule" flag="required"/>
+          </authentication>
+        </security-domain>
+        <security-domain name="oVirtKerbDebug">
+          <authentication>
+            <login-module code="com.sun.security.auth.module.Krb5LoginModule" flag="required">
+              <module-option name="debug" value="true"/>
+            </login-module>
+          </authentication>
+        </security-domain>
+        <!-- This security-domain enables authentication via ticket cache or keytab. -->
+        <security-domain name="oVirtKerbAAA">
+          <authentication>
+            <login-module code="com.sun.security.auth.module.Krb5LoginModule" flag="required">
+              <module-option name="useTicketCache" value="{{ config.getboolean('AAA_JAAS_USE_TICKET_CACHE') }}"/>
+              {% if config.get('AAA_JAAS_TICKET_CACHE_FILE') != "" %}
+              <module-option name="ticketCache" value="{{ config.get('AAA_JAAS_TICKET_CACHE_FILE') }}"/>
+              {% endif %}
+              <module-option name="useKeyTab" value="{{ config.getboolean('AAA_JAAS_USE_KEYTAB') }}"/>
+              {% if config.get('AAA_JAAS_KEYTAB_FILE') != "" %}
+              <module-option name="keyTab" value="{{ config.get('AAA_JAAS_KEYTAB_FILE') }}"/>
+              {% endif %}
+              <module-option name="doNotPrompt" value="true"/>
+            </login-module>
+          </authentication>
+        </security-domain>
+      </security-domains>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:transactions:3.0">
+      <core-environment>
+        <process-id>
+          <uuid/>
+        </process-id>
+      </core-environment>
+      <recovery-environment socket-binding="txn-recovery-environment" status-socket-binding="txn-status-manager"/>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:undertow:3.0">
+      <buffer-cache name="default"/>
+
+      <server name="default-server">
+        <!-- Listeners defined in the engine configuration: -->
+        {% if config.getboolean('ENGINE_HTTP_ENABLED') %}
+        <http-listener
+            name="http"
+            redirect-socket="redirect"
+            socket-binding="http"/>
+        {% endif %}
+        {% if config.getboolean('ENGINE_HTTPS_ENABLED') %}
+        <https-listener
+            name="https"
+            socket-binding="https"
+            security-realm="https"
+            enabled-protocols="{{ config.get('ENGINE_HTTPS_PROTOCOLS') }}"/>
+        {% endif %}
+        {% if config.getboolean('ENGINE_AJP_ENABLED') %}
+        <ajp-listener
+            name="ajp"
+            socket-binding="ajp"
+            redirect-socket="redirect"/>
+        {% endif %}
+
+        <!-- Configure the compression filter so that it will compress all the
+             HTML static content and the output of the RESTAPI: -->
+        <host name="default-host" alias="localhost">
+          <filter-ref
+              name="gzip"
+              predicate='regex(pattern="(text/(css|html|javascript|json|xml))|(application/(json|xml))(;.*)?", value=%{o,content-type}, full-match=true)'/>
+        </host>
+      </server>
+
+      <servlet-container name="default">
+        <jsp-config/>
+        <websockets/>
+      </servlet-container>
+
+      <!-- Enable the gzip compression filter: -->
+      <filters>
+        <gzip name="gzip"/>
+      </filters>
+    </subsystem>
+
+    <subsystem xmlns="urn:jboss:domain:weld:3.0"/>
+  </profile>
+
+  <interfaces>
+    <interface name="loopback">
+      <inet-address value="127.0.0.1"/>
+    </interface>
+    <interface name="public">
+      <any-address/>
+    </interface>
+  </interfaces>
+
+  <socket-binding-group name="standard-sockets" default-interface="loopback">
+    {% if config.getboolean('ENGINE_HTTP_ENABLED') %}
+    <socket-binding
+        name="http"
+        port="{{ config.getinteger('ENGINE_HTTP_PORT') }}"
+        interface="public"/>
+    {% endif %}
+    {% if config.getboolean('ENGINE_HTTPS_ENABLED') %}
+    <socket-binding
+        name="https"
+        port="{{ config.getinteger('ENGINE_HTTPS_PORT') }}"
+        interface="public"/>
+    {% endif %}
+    {% if config.getboolean('ENGINE_AJP_ENABLED') %}
+    <socket-binding
+        name="ajp"
+        port="{{ config.getinteger('ENGINE_AJP_PORT') }}"/>
+    {% endif %}
+
+    <!-- The application server never listen on this port, but it is needed to
+         tell the HTTP and AJP listener where to redirect HTTPS requests: -->
+    <socket-binding
+        name="redirect"
+        port="{{ HTTPS_PORT }}"/>
+
+    <socket-binding name="txn-recovery-environment" port="8704"/>
+    <socket-binding name="txn-status-manager" port="8705"/>
+    <socket-binding name="management" port="8706" interface="{{ config.get('ENGINE_JMX_INTERFACE') }}"/>
+  </socket-binding-group>
+</server>

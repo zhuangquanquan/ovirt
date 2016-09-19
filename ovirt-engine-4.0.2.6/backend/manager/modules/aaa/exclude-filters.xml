@@ -1,0 +1,22 @@
+<FindBugsFilter>
+     <Match>
+       <Class name="org.ovirt.engine.core.aaa.filters.FiltersHelper"/>
+       <Method name="isAuthenticated"/>
+       <Bug code="Bx"/>
+     </Match>
+
+     <Match>
+       <Class name="org.ovirt.engine.core.aaa.filters.SsoLoginFilter" />
+       <Bug code="HRS"/>
+     </Match>
+
+     <Match>
+       <Class name="org.ovirt.engine.core.aaa.servlet.SsoLoginServlet" />
+       <Bug code="HRS"/>
+     </Match>
+
+     <Match>
+       <Class name="org.ovirt.engine.core.aaa.servlet.SsoPostLoginServlet" />
+       <Bug code="HRS"/>
+     </Match>
+</FindBugsFilter>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:d="urn:import:org.ovirt.engine.ui.common.widget.dialog"
+             xmlns:b="urn:import:org.gwtbootstrap3.client.ui">
+
+    <ui:with field='resources' type='org.ovirt.engine.ui.common.CommonApplicationResources'/>
+    <ui:with field='constants' type='org.ovirt.engine.ui.common.CommonApplicationConstants'/>
+
+    <ui:style type="org.ovirt.engine.ui.common.widget.editor.IconEditorWidget.Style">
+
+        .iconImage {
+            display: block;
+            height: 120px;
+            width: 150px;
+            border: thin solid rgb(211, 211, 211);
+        }
+
+        .iconImageDisabled {
+            opacity: 0.4;
+        }
+
+        .iconButton {
+            margin: 0px 0px 10px;
+            min-width: 110px;
+            margin-left: 10px;
+            float: left;
+        }
+
+        .iconButton:focus {
+            outline: thin black dotted;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .iconInfoIcon {
+            margin: 0px 7px;
+        }
+
+        .noBorder {
+            border: none;
+        }
+
+        .floatLeft {
+            float: left;
+        }
+
+        .clearBoth {
+            clear: both;
+        }
+
+        .warningMargin {
+            margin-top: 15px;
+        }
+    </ui:style>
+
+
+    <g:HTMLPanel addStyleNames="{style.noBorder}">
+        <g:FlowPanel>
+            <g:Image ui:field="image" addStyleNames="{style.iconImage} {style.floatLeft}"/>
+            <g:Button ui:field="uploadButton" text="{constants.uploadIconVmPopup}" addStyleNames="{style.iconButton}"/>
+            <d:InfoIcon ui:field="uploadInfoIcon" addStyleNames="{style.iconInfoIcon}"/>
+            <g:HTMLPanel ui:field="hiddenPanel" addStyleNames="{style.hidden}" />
+            <g:Button ui:field="defaultButton" text="{constants.useDefaultIconVmPopup}" addStyleNames="{style.iconButton}"/>
+        </g:FlowPanel>
+        <g:FlowPanel addStyleNames="{style.clearBoth}" />
+        <b:Alert type="DANGER" ui:field="errorMessage" addStyleNames="{style.warningMargin}" />
+    </g:HTMLPanel>
+
+</ui:UiBinder>

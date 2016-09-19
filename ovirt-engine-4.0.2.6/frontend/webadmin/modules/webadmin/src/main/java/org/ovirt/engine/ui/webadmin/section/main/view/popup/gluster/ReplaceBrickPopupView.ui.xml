@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+	xmlns:g="urn:import:com.google.gwt.user.client.ui" xmlns:d="urn:import:org.ovirt.engine.ui.common.widget.dialog"
+	xmlns:e="urn:import:org.ovirt.engine.ui.common.widget.editor" xmlns:w="urn:import:org.ovirt.engine.ui.common.widget"
+  xmlns:ge="urn:import:org.ovirt.engine.ui.common.widget.editor.generic">
+
+	<ui:style type="org.ovirt.engine.ui.webadmin.section.main.view.popup.gluster.ReplaceBrickPopupView.WidgetStyle">
+		.checkBoxEditorWidget {
+		width: 270px;
+		}
+		.panelStyle{
+		width:390px;
+		}
+        .showBricksListCheckBox {
+			padding-left: 120px;
+			width: 270px;
+		}
+	</ui:style>
+
+	<d:SimpleDialogPanel width="400px" height="250px">
+		<d:content>
+			<g:FlowPanel>
+				<e:ListModelListBoxEditor ui:field="serverEditor"/>
+				<ge:EntityModelCheckBoxEditor ui:field="showBricksListEditor" addStyleNames="{style.showBricksListCheckBox}"/>
+				<e:ListModelListBoxEditor ui:field="bricksFromServerList" />
+				<ge:StringEntityModelTextBoxEditor ui:field="brickDirEditor" />
+			</g:FlowPanel>
+		</d:content>
+	</d:SimpleDialogPanel>
+
+</ui:UiBinder>

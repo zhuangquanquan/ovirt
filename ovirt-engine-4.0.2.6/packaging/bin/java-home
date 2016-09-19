@@ -1,0 +1,122 @@
+#!/bin/sh
+
+#
+# execute site local script if available
+#
+if [ -x "$0.local" ]; then
+	exec "$0.local"
+	exit 1
+fi
+
+die() {
+	local m="$1"
+	echo "FATAL: ${m}" >&2
+	exit 1
+}
+
+# Allow different java home per component
+COMPONENT=engine
+while [ -n "$1" ]; do
+	x="$1"
+	v="${x#*=}"
+	shift
+	case "${x}" in
+		--component=*)
+			COMPONENT="${v}"
+		;;
+		*)
+			die "Invalid option '${x}'"
+		;;
+	esac
+done
+case "${COMPONENT}" in
+	engine|reports)
+		:
+	;;
+	*)
+		die "Invalid component '${COMPONENT}'"
+	;;
+esac
+
+validjre() {
+	local dir="$1"
+	local ret=1
+
+	if [ -x "${dir}/bin/java" ]; then
+		local version
+
+		case "${COMPONENT}" in
+			engine)
+				version="$("${dir}/bin/java" -version 2>&1 | sed \
+					-e 's/^openjdk version "1\.8\.0.*/VERSION_OK/' \
+					-e 's/^OpenJDK .*(.*).*/VENDOR_OK/' \
+				)"
+			;;
+			reports)
+				version="$("${dir}/bin/java" -version 2>&1 | sed \
+					-e 's/^java version "1\.7\.0.*/VERSION_OK/' \
+					-e 's/^OpenJDK .*(.*).*/VENDOR_OK/' \
+				)"
+			;;
+		esac
+		if echo "${version}" | grep -q "VERSION_OK" && echo "${version}" | grep -q "VENDOR_OK"; then
+			ret=0
+		fi
+	fi
+
+	return ${ret}
+}
+
+#
+# If system environment contains
+# our specific java look only this one
+#
+if [ -n "${OVIRT_ENGINE_JAVA_HOME}" ]; then
+	if [ -n "${OVIRT_ENGINE_JAVA_HOME_FORCE}" ] || validjre "${OVIRT_ENGINE_JAVA_HOME}"; then
+		echo "${OVIRT_ENGINE_JAVA_HOME}"
+		exit 0
+	else
+		exit 1
+	fi
+fi
+
+#
+# select alternates folder
+# if we find, first wins
+#
+DIRS=
+case "${COMPONENT}" in
+	engine)
+		DIRS="/usr/lib/jvm/jre /usr/lib/jvm/jre-1.8.0 /usr/lib/jvm/jre-1.8.0_openjdk"
+	;;
+	reports)
+		DIRS="/usr/lib/jvm/jre-1.7.0 /usr/lib/jvm/jre-1.7.0_openjdk /usr/lib/jvm/jre"
+	;;
+esac
+for dir in ${DIRS};  do
+	if validjre "${dir}"; then
+		echo "${dir}"
+		exit 0
+	fi
+done
+
+#
+# select from jvm folder
+# last which is not jdk wins
+# jre is preferred as it usually more stable
+#
+JAVA_HOME=""
+for dir in /usr/lib/jvm/*; do
+	if validjre "${dir}"; then
+		if [ -x "${dir}/bin/javac" ]; then
+			[ -z "${JAVA_HOME}" ] && JAVA_HOME="${dir}"
+		else
+			JAVA_HOME="${dir}"
+		fi
+	fi
+done
+
+[ -z "${JAVA_HOME}" ] && exit 1
+
+echo "${JAVA_HOME}"
+exit 0

@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xs:schema version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
+           xmlns:xjc="http://java.sun.com/xml/ns/jaxb/xjc"
+           jaxb:version="2.1" jaxb:extensionBindingPrefixes="xjc">
+
+  <!-- Links -->
+  <xs:element name="keyValuePair" type="KeyValuePair"/>
+
+  <xs:complexType name="KeyValuePair">
+    <xs:sequence>
+        <xs:element name="key" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="value" type="xs:string" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="linkCapabilities" type="LinkCapabilities"/>
+
+  <xs:complexType name="LinkCapabilities">
+	<xs:sequence>
+	  <xs:element name="searchable" type="xs:boolean" minOccurs="0" maxOccurs="1"/>
+	</xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="detailedLink" type="DetailedLink"/>
+
+  <xs:complexType name="DetailedLink">
+    <xs:complexContent>
+      <xs:extension base="Link">
+        <xs:sequence>
+          <xs:element name="description" type="xs:string" minOccurs="0" maxOccurs="1"/>
+          <xs:element ref="request" minOccurs="0" maxOccurs="1"/>
+          <xs:element ref="response" minOccurs="0" maxOccurs="1"/>
+          <xs:element ref="linkCapabilities" minOccurs="0" maxOccurs="1"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+ <xs:element name="detailedLinks" type="DetailedLinks"/>
+
+  <xs:complexType name="DetailedLinks">
+    <xs:sequence>
+      <xs:annotation>
+        <xs:appinfo>
+          <jaxb:property name="links"/>
+        </xs:appinfo>
+      </xs:annotation>
+      <xs:element type="DetailedLink" name="link" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="link" type="Link"/>
+
+  <xs:complexType name="Link">
+    <xs:attribute name="href" type="xs:string"/>
+    <xs:attribute name="rel" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:element name="usage_message" type="UsageMessage"/>
+
+  <xs:complexType name="UsageMessage">
+    <xs:sequence>
+      <xs:element name="message" type="xs:string"/>
+      <xs:element ref="detailedLink" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="usages" type="Usages" />
+
+  <xs:complexType name="Usages">
+    <xs:sequence>
+      <xs:annotation>
+        <xs:appinfo>
+            <jaxb:property name="usages"/>
+        </xs:appinfo>
+      </xs:annotation>
+      <xs:element name="usage" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Represents an asynchronous resource creation -->
+
+  <xs:element name="creation" type="Creation"/>
+
+  <xs:complexType name="Creation">
+    <xs:complexContent>
+      <xs:extension base="BaseResource">
+        <xs:sequence>
+          <xs:element name="status" type="xs:string" minOccurs="0" maxOccurs="1"/>
+          <!-- Fault describing failure case -->
+          <xs:element ref="fault" minOccurs="0" maxOccurs="1"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:element name="creation_states" type="CreationStates"/>
+
+  <xs:complexType name="CreationStates">
+    <xs:sequence>
+      <xs:element name="creation_state" type="xs:string" minOccurs="0" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:appinfo>
+            <jaxb:property name="CreationStates"/>
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Common to all resources -->
+
+  <xs:complexType name="ActionableResource">
+    <xs:sequence>
+      <xs:element name="actions" type="Actions" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="BaseResource">
+    <xs:complexContent>
+      <xs:extension base="ActionableResource">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string" minOccurs="0"/>
+          <xs:element name="description" type="xs:string" minOccurs="0"/>
+          <xs:element name="comment" type="xs:string" minOccurs="0"/>
+          <xs:element name="creation_status" type="xs:string" minOccurs="0"/>
+          <!-- also rel="creation_status" link for monitoring async creation -->
+          <!-- further link relation types may be defined by specific resources -->
+          <xs:element ref="link" minOccurs="0" maxOccurs="unbounded">
+            <xs:annotation>
+              <xs:appinfo>
+                <jaxb:property name="Links"/>
+              </xs:appinfo>
+            </xs:annotation>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="href" type="xs:string"/>
+        <xs:attribute name="id" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="BaseResources">
+     <xs:complexContent>
+      <xs:extension base="ActionableResource">
+        <xs:sequence>
+          <!-- The "size" of the collection is the actual number of items
+               returned as a result. For example, when using the "max"
+               parameter the set of returned items may be different than
+               the total. -->
+          <xs:element name="size" type="xs:unsignedInt" minOccurs="0"/>
+
+          <!-- The "total" is the total number of items that match the
+               restrictions given by the caller, regardless of the value
+               of the "max" parameter. -->
+          <xs:element name="total" type="xs:unsignedInt" minOccurs="0"/>
+
+          <xs:element name="active" type="xs:unsignedInt" minOccurs="0"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- RSDL -->
+
+  <xs:element name="url" type="Url"/>
+
+  <xs:complexType name="Url">
+    <xs:sequence>
+      <xs:element ref="parameters_set" maxOccurs="unbounded" minOccurs="0">
+        <xs:annotation>
+          <xs:appinfo>
+            <jaxb:property name="ParametersSets"/>
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="body" type="Body"/>
+
+  <xs:complexType name="Body">
+    <xs:sequence>
+      <xs:element name="type" type="xs:string" minOccurs="1" maxOccurs="1"/>
+      <xs:element ref="parameters_set" maxOccurs="unbounded" minOccurs="0">
+        <xs:annotation>
+          <xs:appinfo>
+            <jaxb:property name="ParametersSets"/>
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="required" type="xs:boolean">
+                <xs:annotation>
+          <xs:appinfo>
+            <jaxb:property generateIsSetMethod="false"/>
+          </xs:appinfo>
+        </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <xs:element name="request" type="Request"/>
+
+  <xs:complexType name="Request">
+    <xs:sequence>
+      <xs:element name="http_method" type="HttpMethod" minOccurs="1" maxOccurs="1"/>
+      <xs:element ref="headers" minOccurs="0" maxOccurs="1"/>
+      <xs:element ref="url" minOccurs="0" maxOccurs="1"/>
+      <xs:element ref="body" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="HttpMethod">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="GET"/>
+      <xs:enumeration value="POST"/>
+      <xs:enumeration value="PUT"/>
+      <xs:enumeration value="DELETE"/>
+      <xs:enumeration value="OPTIONS"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="response" type="Response"/>
+
+  <xs:complexType name="Response">
+    <xs:sequence>
+      <xs:element name="type" type="xs:string" minOccurs="1" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="parameter" type="Parameter"/>
+
+  <xs:complexType name="Parameter">
+    <xs:complexContent>
+      <xs:extension base="BaseResource">
+        <xs:sequence>
+	      <xs:element name="value" type="xs:string" minOccurs="1" maxOccurs="1"/>
+	      <xs:element ref="parameters_set" minOccurs="0" maxOccurs="1"/>
+	      <xs:element name="deprecated" type="xs:boolean" minOccurs="0" maxOccurs="1"/>
+        </xs:sequence>
+        <xs:attribute name="required" type="xs:boolean">
+          <xs:annotation>
+            <xs:appinfo>
+              <jaxb:property generateIsSetMethod="false"/>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="type" type="xs:string"/>
+        <xs:attribute name="context" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:element name="header" type="Header"/>
+
+  <xs:complexType name="Header">
+    <xs:complexContent>
+      <xs:extension base="BaseResource">
+        <xs:sequence>
+          <xs:element name="value" type="xs:string" minOccurs="1" maxOccurs="1"/>
+          <xs:element name="deprecated" type="xs:boolean" minOccurs="0" maxOccurs="1"/>
+        </xs:sequence>
+       <xs:attribute name="required" type="xs:boolean">
+        <xs:annotation>
+          <xs:appinfo>
+            <jaxb:property generateIsSetMethod="false"/>
+          </xs:appinfo>
+        </xs:annotation>
+       </xs:attribute>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:element name="headers" type="Headers"/>
+
+  <xs:complexType name="Headers">
+    <xs:sequence>
+      <xs:element ref="header" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:appinfo>
+            <jaxb:property name="Headers"/>
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="parameters_set" type="ParametersSet"/>
+
+  <xs:complexType name="ParametersSet">
+    <xs:sequence>
+      <xs:element name="deprecated" type="xs:boolean" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="description" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element ref="parameter" maxOccurs="unbounded" minOccurs="0">
+        <xs:annotation>
+          <xs:appinfo>
+            <jaxb:property name="Parameters"/>
+          </xs:appinfo>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="schema" type="Schema"/>
+
+  <xs:complexType name="Schema">
+    <xs:complexContent>
+      <xs:extension base="Link">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string" minOccurs="0" maxOccurs="1"/>
+          <xs:element name="description" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:element name="general_metadata" type="GeneralMetadata"/>
+
+  <xs:complexType name="GeneralMetadata">
+    <xs:complexContent>
+      <xs:extension base="DetailedLink">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:element name="rsdl" type="Rsdl"/>
+
+  <xs:complexType name="Rsdl">
+     <xs:sequence>
+       <xs:element name="description" type="xs:string" minOccurs="0"/>
+       <xs:element type="Version" name="version" minOccurs="0" maxOccurs="1" />
+       <xs:element ref="schema" minOccurs="0" maxOccurs="1" />
+       <xs:element type="GeneralMetadata" name="general" minOccurs="0" maxOccurs="1"/>
+       <xs:element type="DetailedLinks" name="links" minOccurs="0"/>
+     </xs:sequence>
+     <xs:attribute name="href" type="xs:string"/>
+     <xs:attribute name="rel" type="xs:string"/>
+  </xs:complexType>
+
+</xs:schema>

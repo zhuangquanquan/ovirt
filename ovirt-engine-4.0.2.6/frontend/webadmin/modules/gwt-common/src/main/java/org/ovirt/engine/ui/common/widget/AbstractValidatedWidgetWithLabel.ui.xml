@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder" xmlns:g="urn:import:com.google.gwt.user.client.ui"
+xmlns:t="urn:import:org.ovirt.engine.ui.common.widget.tooltip"
+xmlns:b="urn:import:org.gwtbootstrap3.client.ui" >
+
+    <ui:style type="org.ovirt.engine.ui.common.widget.AbstractValidatedWidgetWithLabel.Style">
+        .wrapper_legacy {
+            line-height: 30px;
+            text-align: left;
+            padding: 0 5px;
+        }
+
+        .label_legacy {
+            font-size: 13px;
+            font-family: Arial, sans-serif;
+            line-height: 16px;
+            padding: 0;
+        }
+
+        .contentWidgetContainer_legacy {
+            float: right;
+            width: 238px;
+            padding: 0 5px;
+            line-height: 16px !important;
+        }
+
+        .maxWidth {
+            width: 100%;
+        }
+
+        .clear {
+            clear: both;
+        }
+    </ui:style>
+
+    <g:FlowPanel ui:field="wrapperPanel">
+        <t:WidgetTooltip ui:field="labelTooltip">
+            <b:FormLabel ui:field="label"/>
+        </t:WidgetTooltip>
+        <t:WidgetTooltip ui:field="contentWidgetContainerTooltip">
+            <g:FlowPanel ui:field="contentWidgetContainer" />
+        </t:WidgetTooltip>
+        <g:SimplePanel addStyleNames="{style.clear}" />
+    </g:FlowPanel>
+
+</ui:UiBinder>
